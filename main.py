@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
-from matplotlib import pyplot as plt
+import pandas as pd
+#from matplotlib import pyplot as plt
 
 #from utils import *
 
@@ -33,7 +34,12 @@ if __name__ == '__main__':
 		y = input('file path: ')
 		print('train here')
 
-	print(args.model)
+	x2 = pd.read_excel('labels.xlsx', sheetname='eq_im_1')
+	print(x2)
+
+
+
+
 
 	'''
 	img = cv2.imread('/Users/josejoy/Desktop/ECE 271B Stat Learning /project/eq1.jpg',0)
