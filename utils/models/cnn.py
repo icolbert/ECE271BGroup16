@@ -1,7 +1,9 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.contrib.layers as tcl
+import pandas as pd
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 
 
@@ -17,59 +19,67 @@ class CNN(object):
         self.name = 'CNN'
 
     def __call__(self, x, reuse=True):
-        with tf.variable_scope(self.name) as vs:
-            if reuse:
-                vs.reuse_variables()
+        x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
+        conv1 = tc.layers.convolution2d(
+            x, 64, [4, 4], [2, 2],
+            weights_initializer=tf.random_normal_initializer(stddev=0.02),
+            activation_fn=tf.identity
+        )
+        conv1 = leaky_relu(conv1)
 
-            x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
-            conv1 = tc.layers.convolution2d(
-                x, 64, [4, 4], [2, 2],
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )
-            conv1 = leaky_relu(conv1)
+        conv2 = tc.layers.convolution2d(
+            conv1, 128, [4, 4], [2, 2],
+            weights_initializer=tf.random_normal_initializer(stddev=0.02),
+            activation_fn=tf.identity
+        )
+        conv2 = leaky_relu(conv2)
 
-            conv2 = tc.layers.convolution2d(
-                conv1, 128, [4, 4], [2, 2],
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )
-            conv2 = leaky_relu(conv2)
-
-            conv2 = tcl.flatten(conv2)
-            fc1 = tc.layers.fully_connected(
-                conv2, 1024,
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )
-            fc1 = leaky_relu(fc1)
-            fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)
-            return fc2
-
-    def loss(self, prediction, target):
-        return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(prediction, target))
+        conv2 = tcl.flatten(conv2)
+        fc1 = tc.layers.fully_connected(
+            conv2, 1024,
+            weights_initializer=tf.random_normal_initializer(stddev=0.02),
+            activation_fn=tf.identity
+        )
+        fc1 = leaky_relu(fc1)
+        fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)
+        return fc2
 
     @property
     def vars(self):
         return [var for var in tf.global_variables() if self.name in var.name]
 
 class TrainModel:
-    def __init__(self):
-        self.data, self.labels = self.load_data()
+    def __init__(self, **kwargs):
+        self.data, self.labels = self.load_data(kwargs.pop('class_labels', False))
         self.IN_DIM = self.data['train'].shape[1]
         self.NUM_CLASSES = self.labels['train'].shape[1]
 
         self.LEARNING_RATE = 1e-3
-        self.DISPLAY_STEP = 100
+        self.DISPLAY_STEP = 10
         self.EPOCHS = 1000
         self.BATCHES = 50
         self.BATCH_SIZE = 500
         self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
 
-    def load_data(self):
-        pass
+    def load_data(self, class_labels, train=0.85, val=0.15):
+        print('Loading data...', end='\t\t\t')
+        data = pd.read_csv('data/final_data.csv', header=None)
+        labels = pd.read_csv('data/final_label.csv', header=None, names=['labels'])
+        labels['labels'] = labels['labels'].map(class_labels)
+        assert data.shape[0] == labels.shape[0]
+        assert isinstance(train, float) and isinstance(val, float), "train and val must be of type float, not {0} and {1}".format(type(train), type(val))
+        assert ((train + val) == 1.0), "train + val must equal 1.0"
 
-    def train(self, inputs, labels):
+        sidx = int(data.shape[0]*train)
+        _data  = {'train': data.iloc[:sidx].as_matrix(),   'val': data.iloc[sidx+1:].as_matrix()}
+        _labels= {'train': labels.iloc[:sidx].as_matrix(), 'val': labels.iloc[sidx+1:].as_matrix()}
+        print('[Done]')
+
+        assert (_data['train'].shape[0] == _labels['train'].shape[0]) and (_data['val'].shape[0] == _labels['val'].shape[0])
+        return _data, _labels
+
+
+    def train(self):
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
         c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
@@ -85,7 +95,7 @@ class TrainModel:
         self.acc = np.zeros((self.EPOCHS), dtype=float)
         self.tacc = np.zeros((self.EPOCHS), dtype=float)
 
-        with tf.Session as sess:
+        with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
@@ -104,8 +114,8 @@ class TrainModel:
                 sess.run(optimizer, feed_dict={x: xs, c:ls})
             sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
 
-            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['test'], c:self.labels['test']})
+            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
+            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
 
             if (epoch+1 % self.DISPLAY_STEP == 0):
                 print('[Epoch {0}]'.format(epoch+1), end='\t')
@@ -113,6 +123,9 @@ class TrainModel:
                 print('Acc: %.3f' % 100.0*self.acc[epoch])
 
     def plot_results(self, save_path='results/'):
+        assert isinstance(save_path, str)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
         plt.plot(self.acc, color='red', linewidth=2, label='Training Accuracy')
         plt.plot(self.tacc, '--', color='black', linewidth=1, label='Test Accuracy')
@@ -136,3 +149,13 @@ def mlog(message, File=None):
         print("\n=========================================")
         print(message)
         print("=========================================")
+
+if __name__ == '__main__':
+    # Define the class labels
+    class_labels = {str(x):x for x in range(10)}
+    class_labels.update({'\\pi':10, '\\times':11, '\\%':12, '-':13, '/':14, '<':15, '>':16, '\\div':17, '+':18})
+    
+    # Initialize training the model
+    model = TrainModel(class_labels=class_labels)
+    model.train()
+    model.plot_results()
