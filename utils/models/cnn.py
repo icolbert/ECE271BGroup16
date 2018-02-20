@@ -55,8 +55,8 @@ class TrainModel:
         self.NUM_CLASSES = self.labels['train'].shape[1]
 
         self.LEARNING_RATE = 1e-3
-        self.DISPLAY_STEP = 10
-        self.EPOCHS = 1000
+        self.DISPLAY_STEP = 1
+        self.EPOCHS = 500
         self.BATCHES = 50
         self.BATCH_SIZE = 500
         self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
@@ -79,7 +79,9 @@ class TrainModel:
         return _data, _labels
 
 
-    def train(self):
+    def train(self, save_path='/saved_models/'):
+        if not os.path.exists(save_path):
+              os.makedirs(save_path)
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
         c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
@@ -94,12 +96,16 @@ class TrainModel:
 
         self.acc = np.zeros((self.EPOCHS), dtype=float)
         self.tacc = np.zeros((self.EPOCHS), dtype=float)
-
+        saver = tf.train.Saver()
+        
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
             self.__minibatch_training(sess, optimizer, accuracy, cost, pred, x, c)
+            
+            sp = saver.save(sess, "/{0}/{1}.ckpt".format(self.model.name, save_path)
+            print("Model saved in path: %s" % sp)
     
     def __minibatch_training(self, sess, optimizer, accuracy, cost, pred, x, c):
 
