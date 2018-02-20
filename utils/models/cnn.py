@@ -18,32 +18,40 @@ class CNN(object):
         self.c_dim = c_dim
         self.name = 'CNN'
 
-    def __call__(self, x, reuse=True):
+    def __call__(self, x, reuse=True, dropout=0.25, is_training=True):
         with tf.variable_scope(self.name, reuse=reuse):
             x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
-            conv1 = tc.layers.convolution2d(
+            '''conv1 = tc.layers.convolution2d(
                 x, 64, [4, 4], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
-            )
+            )'''
+            conv1 = tf.layers.conv2d(x, 32, 5, activation=tf.identity)
             conv1 = leaky_relu(conv1)
+            conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
 
-            conv2 = tc.layers.convolution2d(
+            '''conv2 = tc.layers.convolution2d(
                 conv1, 128, [4, 4], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
-            )
+            )'''
+            conv2 = tf.layers.conv2d(conv1, 64, 3, activation=tf.nn.relu)
             conv2 = leaky_relu(conv2)
+            conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
 
             conv2 = tcl.flatten(conv2)
-            fc1 = tc.layers.fully_connected(
+            '''fc1 = tc.layers.fully_connected(
                 conv2, 1024,
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
             fc1 = leaky_relu(fc1)
-            fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)
-            return fc2
+            fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)'''
+            fc1 = tf.layers.dense(conv2, 1024)
+            fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
+
+            out = tf.layers.dense(fc1, self.c_dim)
+            return out
 
     @property
     def vars(self):
@@ -87,12 +95,14 @@ class TrainModel:
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
         c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
 
-        pred = self.model(x)
+        pred_train = self.model(x, reuse=False, is_training=True)
+        pred_test = self.model(x, reuse=True, is_training=False)
 
         # Performance Metrics
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred, 1), tf.argmax(c, 1)), tf.float32))
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred_train, 1), tf.argmax(c, 1)), tf.float32))
+        taccuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred_test, 1), tf.argmax(c, 1)), tf.float32))
 
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred, labels=c))
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred_train, labels=c))
         optimizer = tf.train.AdamOptimizer(learning_rate=self.LEARNING_RATE).minimize(cost)
 
         self.acc = np.zeros((self.EPOCHS), dtype=float)
@@ -103,12 +113,12 @@ class TrainModel:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
-            self.__minibatch_training(sess, optimizer, accuracy, cost, pred, x, c)
+            self.__minibatch_training(sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy)
             
-            sp = saver.save(sess, "/{0}/{1}.ckpt".format(self.model.name, save_path)
+            sp = saver.save(sess, "/{0}/{1}.ckpt".format(self.model.name, save_path))
             print("Model saved in path: %s" % sp)
     
-    def __minibatch_training(self, sess, optimizer, accuracy, cost, pred, x, c):
+    def __minibatch_training(self, sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy):
 
         mlog('Training {0}'.format(self.model.name))
         for epoch in range(self.EPOCHS):
@@ -122,12 +132,12 @@ class TrainModel:
             sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
 
             self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.tacc[epoch] = sess.run(taccuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
 
             if (epoch+1 % self.DISPLAY_STEP == 0):
                 print('[Epoch {0}]'.format(epoch+1), end='\t')
                 print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
-                print('Acc: %.3f' % 100.0*self.acc[epoch])
+                print('Acc: %.3f' % self.acc[epoch])
 
     def plot_results(self, save_path='results/'):
         assert isinstance(save_path, str)
