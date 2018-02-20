@@ -77,7 +77,7 @@ class CNN(object):
         
         fc2 = tc.layers.fully_connected(
             fc1, self.c_dim,
-            weights_initializer=tf.random_normal_intializer(stddev=0.02),
+            weights_initializer=tf.random_normal_initializer(stddev=0.02),
             activation_fn=tf.identity
         )
         
@@ -125,7 +125,7 @@ class TrainModel:
               os.makedirs(save_path)
         
         self.log_file = open('{0}/model_log.txt'.format(save_path), 'a')
-        mlog('{0} Training {1}'.format(now.strftime("%Y-%m-%d %H:%M"), self.model.name), self.log_file)
+        mlog('{0} Training {1}'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), self.model.name), self.log_file)
         self.log_file.write(
             'Learning rate: {0}\nEpochs: {1}\nBatches: {2}\nBatch Size: {3}\n'.format(
             self.model.LEARNING_RATE, self.model.EPOCHS, self.model.BATCHES, self.model.BATCH_SIZE
@@ -185,6 +185,7 @@ class TrainModel:
         self.log_file.write(
             '\nFinal training accuracy: {0}\nFinal test accuracy: {1}\n'.format(
             self.acc[-1], self.tacc[-1]
+            )
         )
         
         plt.plot(self.acc, color='red', linewidth=2, label='Training Accuracy')
