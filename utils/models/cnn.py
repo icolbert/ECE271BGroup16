@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.contrib.layers as tcl
+import datetime
 import pandas as pd
 import argparse
 import numpy as np
@@ -18,6 +19,10 @@ class LogReg():
     def __init__(self, x_dim, c_dim):
         self.x_dim = x_dim
         self.c_dim = c_dim
+        self.LEARNING_RATE = 1e-3
+        self.EPOCHS = 1000
+        self.BATCHES = 20
+        self.BATCH_SIZE = 500
         self.name = 'LogReg'
     
     def __call__(self, x, reuse=True):
@@ -37,13 +42,17 @@ class LogReg():
 
 class CNN(object):
     
-    def __init__(self, x_dim=784, c_dim=19):
+    def __init__(self, x_dim, c_dim):
         self.x_dim = x_dim
         self.c_dim = c_dim
+        self.LEARNING_RATE = 1e-5
+        self.EPOCHS = 600
+        self.BATCHES = 20
+        self.BATCH_SIZE = 500
         self.name = 'CNN'
 
     def __call__(self, x, reuse=True):
-        x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
+        x = tf.reshape(x, [-1, 28, 28, 1])
         conv1 = tc.layers.convolution2d(
             x, 64, [4, 4], [2, 2],
             weights_initializer=tf.random_normal_initializer(stddev=0.02),
@@ -59,14 +68,19 @@ class CNN(object):
         )
         conv2 = leaky_relu(conv2)
         
-        conv2 = tcl.flatten(conv2)
         fc1 = tc.layers.fully_connected(
-            conv2, 1024,
+            tcl.flatten(conv2), 1024,
             weights_initializer=tf.random_normal_initializer(stddev=0.02),
             activation_fn=tf.identity
         )
         fc1 = leaky_relu(fc1)
-        fc2 = tc.layers.fully_connected(tcl.flatten(conv1), self.c_dim, activation_fn=tf.identity)
+        
+        fc2 = tc.layers.fully_connected(
+            fc1, self.c_dim,
+            weights_initializer=tf.random_normal_intializer(stddev=0.02),
+            activation_fn=tf.identity
+        )
+        
         return fc2, tf.nn.softmax(fc2)
 
     @property
@@ -80,13 +94,8 @@ class TrainModel:
         self.data, self.labels = self.load_data(kwargs.pop('class_labels', False))
         self.IN_DIM = self.data['train'].shape[1]
         self.NUM_CLASSES = self.labels['train'].shape[1]
+        self.DISPLAY_STEP = 10
 
-        self.LEARNING_RATE = 1e-3
-        self.DISPLAY_STEP = 5
-        self.EPOCHS = 1000
-        self.BATCHES = 20
-        self.BATCH_SIZE = 500
-        
         if model == 'log_reg':
             self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
         elif model == 'cnn':
@@ -114,21 +123,27 @@ class TrainModel:
     def train(self, save_path='saved_models/'):
         if not os.path.exists(save_path):
               os.makedirs(save_path)
+        
+        self.log_file = open('{0}/model_log.txt'.format(save_path), 'a')
+        mlog('{0} Training {1}'.format(now.strftime("%Y-%m-%d %H:%M"), self.model.name), self.log_file)
+        self.log_file.write(
+            'Learning rate: {0}\nEpochs: {1}\nBatches: {2}\nBatch Size: {3}\n'.format(
+            self.model.LEARNING_RATE, self.model.EPOCHS, self.model.BATCHES, self.model.BATCH_SIZE
+            )
+        )
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
         c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
 
         logits, probs = self.model(x)
-        # Performance Metrics
         correct_prediction = tf.equal(tf.argmax(probs, 1), tf.argmax(c, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        #taccuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred_test, 1), tf.argmax(c, 1)), tf.float32))
 
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=c))
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.LEARNING_RATE).minimize(cost)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.model.LEARNING_RATE).minimize(cost)
 
-        self.acc = np.zeros((self.EPOCHS), dtype=float)
-        self.tacc = np.zeros((self.EPOCHS), dtype=float)
+        self.acc = np.zeros((self.model.EPOCHS), dtype=float)
+        self.tacc = np.zeros((self.model.EPOCHS), dtype=float)
         saver = tf.train.Saver()
         
         with tf.Session() as sess:
@@ -143,12 +158,12 @@ class TrainModel:
     def __minibatch_training(self, sess, optimizer, accuracy, cost, x, c):
 
         mlog('Training {0}'.format(self.model.name))
-        for epoch in range(self.EPOCHS):
-            for batch in range(self.BATCHES):
-                if (batch+1 == self.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+        for epoch in range(self.model.EPOCHS):
+            for batch in range(self.model.BATCHES):
+                if (batch+1 == self.model.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
                 dx, dl = self.data['train'], self.labels['train']
 
-                ridx = np.random.randint(dx.shape[0], size=self.BATCH_SIZE)
+                ridx = np.random.randint(dx.shape[0], size=self.model.BATCH_SIZE)
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
                 sess.run(optimizer, feed_dict={x: xs, c:ls})
@@ -167,6 +182,11 @@ class TrainModel:
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
+        self.log_file.write(
+            '\nFinal training accuracy: {0}\nFinal test accuracy: {1}\n'.format(
+            self.acc[-1], self.tacc[-1]
+        )
+        
         plt.plot(self.acc, color='red', linewidth=2, label='Training Accuracy')
         plt.plot(self.tacc, '--', color='black', linewidth=1, label='Test Accuracy')
         plt.xlabel('Epochs')
