@@ -26,14 +26,15 @@ class CNN(object):
             activation_fn=tf.identity
         )
         conv1 = leaky_relu(conv1)
-
+        
+        '''
         conv2 = tc.layers.convolution2d(
             conv1, 128, [4, 4], [2, 2],
             weights_initializer=tf.random_normal_initializer(stddev=0.02),
             activation_fn=tf.identity
         )
         conv2 = leaky_relu(conv2)
-
+        
         conv2 = tcl.flatten(conv2)
         fc1 = tc.layers.fully_connected(
             conv2, 1024,
@@ -41,7 +42,8 @@ class CNN(object):
             activation_fn=tf.identity
         )
         fc1 = leaky_relu(fc1)
-        fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)
+        '''
+        fc2 = tc.layers.fully_connected(tcl.flatten(conv1), self.c_dim, activation_fn=tf.sigmoid)
         return fc2
 
     @property
@@ -54,7 +56,7 @@ class TrainModel:
         self.IN_DIM = self.data['train'].shape[1]
         self.NUM_CLASSES = self.labels['train'].shape[1]
 
-        self.LEARNING_RATE = 1e-3
+        self.LEARNING_RATE = 1e-4
         self.DISPLAY_STEP = 1
         self.EPOCHS = 500
         self.BATCHES = 50
@@ -79,7 +81,7 @@ class TrainModel:
         return _data, _labels
 
 
-    def train(self, save_path='/saved_models/'):
+    def train(self, save_path='saved_models/'):
         if not os.path.exists(save_path):
               os.makedirs(save_path)
 
@@ -104,29 +106,29 @@ class TrainModel:
 
             self.__minibatch_training(sess, optimizer, accuracy, cost, pred, x, c)
             
-            sp = saver.save(sess, "/{0}/{1}.ckpt".format(self.model.name, save_path)
-            print("Model saved in path: %s" % sp)
+            sp = saver.save(sess, "{0}/{1}.ckpt".format(self.model.name, save_path))
+            print('Model saved in path: {0}'.format(sp))
     
     def __minibatch_training(self, sess, optimizer, accuracy, cost, pred, x, c):
 
         mlog('Training {0}'.format(self.model.name))
         for epoch in range(self.EPOCHS):
+            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
+            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            #if (epoch+1 % self.DISPLAY_STEP == 0):
+            print(sess.run(pred, feed_dict={x:self.data['train']}))
+            print('[Epoch {0}]'.format(epoch+1), end='\t')
+            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
+            print('Acc: {0}'.format(self.acc[epoch]))
+            
             for batch in range(self.BATCHES):
+                if (batch+1 == self.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
                 dx, dl = self.data['train'], self.labels['train']
 
                 ridx = np.random.randint(dx.shape[0], size=self.BATCH_SIZE)
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
                 sess.run(optimizer, feed_dict={x: xs, c:ls})
-            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
-
-            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
-
-            if (epoch+1 % self.DISPLAY_STEP == 0):
-                print('[Epoch {0}]'.format(epoch+1), end='\t')
-                print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
-                print('Acc: %.3f' % 100.0*self.acc[epoch])
 
     def plot_results(self, save_path='results/'):
         assert isinstance(save_path, str)
