@@ -79,7 +79,6 @@ class CNN(object):
 
             out = tf.layers.dense(fc1, self.c_dim)
             return out
->>>>>>> d26c35b76f69cc116035fd8b3839a443c75bed59
 
     @property
     def vars(self):
@@ -143,20 +142,15 @@ class TrainModel:
 
             self.__minibatch_training(sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy)
             
-<<<<<<< HEAD
             sp = saver.save(sess, "{0}/{1}.ckpt".format(self.model.name, save_path))
             print('Model saved in path: {0}'.format(sp))
-=======
-            sp = saver.save(sess, "/{0}/{1}.ckpt".format(self.model.name, save_path))
-            print("Model saved in path: %s" % sp)
->>>>>>> d26c35b76f69cc116035fd8b3839a443c75bed59
     
     def __minibatch_training(self, sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy):
 
         mlog('Training {0}'.format(self.model.name))
         for epoch in range(self.EPOCHS):
             self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.tacc[epoch] = sess.run(taccuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
             #if (epoch+1 % self.DISPLAY_STEP == 0):
             print(sess.run(pred, feed_dict={x:self.data['train']}))
             print('[Epoch {0}]'.format(epoch+1), end='\t')
@@ -171,9 +165,8 @@ class TrainModel:
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
                 sess.run(optimizer, feed_dict={x: xs, c:ls})
-<<<<<<< HEAD
-=======
-            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+
+            '''sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
 
             self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
             self.tacc[epoch] = sess.run(taccuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
@@ -181,8 +174,7 @@ class TrainModel:
             if (epoch+1 % self.DISPLAY_STEP == 0):
                 print('[Epoch {0}]'.format(epoch+1), end='\t')
                 print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
-                print('Acc: %.3f' % self.acc[epoch])
->>>>>>> d26c35b76f69cc116035fd8b3839a443c75bed59
+                print('Acc: %.3f' % self.acc[epoch])'''
 
     def plot_results(self, save_path='results/'):
         assert isinstance(save_path, str)
