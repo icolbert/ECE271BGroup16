@@ -1,25 +1,58 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.contrib.layers as tcl
+import datetime
 import pandas as pd
+import argparse
 import numpy as np
 import os
+
+import matplotlib
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
 
 def leaky_relu(x, alpha=0.2):
     return tf.maximum(tf.minimum(0.0, alpha * x), x)
 
+class LogReg():
+    def __init__(self, x_dim, c_dim):
+        self.x_dim = x_dim
+        self.c_dim = c_dim
+        self.LEARNING_RATE = 1e-3
+        self.EPOCHS = 1000
+        self.BATCHES = 20
+        self.BATCH_SIZE = 500
+        self.name = 'LogReg'
+    
+    def __call__(self, x, reuse=True):
+        with tf.variable_scope(self.name) as vs:
+            fc = tcl.fully_connected(
+                x, self.c_dim,
+                weights_initializer=tf.random_normal_initializer(stddev=2),
+                weights_regularizer=tc.layers.l2_regularizer(1e-5),
+                activation_fn=tf.identity
+            )
+            return fc, tf.nn.softmax(fc)
+    
+    @property
+    def vars(self):
+        return [var for var in tf.global_variables() if self.name in var.name]
+
 
 class CNN(object):
     
-    def __init__(self, x_dim=784, c_dim=19):
+    def __init__(self, x_dim, c_dim):
         self.x_dim = x_dim
         self.c_dim = c_dim
+        self.LEARNING_RATE = 1e-5
+        self.EPOCHS = 600
+        self.BATCHES = 20
+        self.BATCH_SIZE = 500
         self.name = 'CNN'
 
-    '''def __call__(self, x, reuse=True):
-        x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
+    def __call__(self, x, reuse=True):
+        x = tf.reshape(x, [-1, 28, 28, 1])
         conv1 = tc.layers.convolution2d(
             x, 64, [4, 4], [2, 2],
             weights_initializer=tf.random_normal_initializer(stddev=0.02),
@@ -35,67 +68,38 @@ class CNN(object):
         )
         conv2 = leaky_relu(conv2)
         
-        conv2 = tcl.flatten(conv2)
         fc1 = tc.layers.fully_connected(
-            conv2, 1024,
+            tcl.flatten(conv2), 1024,
             weights_initializer=tf.random_normal_initializer(stddev=0.02),
             activation_fn=tf.identity
         )
         fc1 = leaky_relu(fc1)
-        fc2 = tc.layers.fully_connected(tcl.flatten(conv1), self.c_dim, activation_fn=tf.sigmoid)
-        return fc2'''
-    
-    def __call__(self, x, reuse=True, dropout=0.25, is_training=True):
-        with tf.variable_scope(self.name, reuse=reuse):
-            x = tf.reshape(x, [-1, 28, 28, 1]) # reshapes it to 28x28 images
-            '''conv1 = tc.layers.convolution2d(
-                x, 64, [4, 4], [2, 2],
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )'''
-            conv1 = tf.layers.conv2d(x, 32, 5, activation=tf.identity)
-            conv1 = leaky_relu(conv1)
-            conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
-
-            '''conv2 = tc.layers.convolution2d(
-                conv1, 128, [4, 4], [2, 2],
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )'''
-            conv2 = tf.layers.conv2d(conv1, 64, 3, activation=tf.nn.relu)
-            conv2 = leaky_relu(conv2)
-            conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
-
-            conv2 = tcl.flatten(conv2)
-            '''fc1 = tc.layers.fully_connected(
-                conv2, 1024,
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )
-            fc1 = leaky_relu(fc1)
-            fc2 = tc.layers.fully_connected(fc1, self.c_dim, activation_fn=tf.sigmoid)'''
-            fc1 = tf.layers.dense(conv2, 1024)
-            fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
-
-            out = tf.layers.dense(fc1, self.c_dim)
-            return out
+        
+        fc2 = tc.layers.fully_connected(
+            fc1, self.c_dim,
+            weights_initializer=tf.random_normal_initializer(stddev=0.02),
+            activation_fn=tf.identity
+        )
+        
+        return fc2, tf.nn.softmax(fc2)
 
     @property
     def vars(self):
         return [var for var in tf.global_variables() if self.name in var.name]
 
 class TrainModel:
-    def __init__(self, **kwargs):
+    def __init__(self, model='cnn', **kwargs):
+        assert isinstance(model, str), "the model type must be a string, not a {0}".format(type(model))
+        
         self.data, self.labels = self.load_data(kwargs.pop('class_labels', False))
         self.IN_DIM = self.data['train'].shape[1]
         self.NUM_CLASSES = self.labels['train'].shape[1]
+        self.DISPLAY_STEP = 10
 
-        self.LEARNING_RATE = 1e-4
-        self.DISPLAY_STEP = 1
-        self.EPOCHS = 500
-        self.BATCHES = 50
-        self.BATCH_SIZE = 500
-        self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        if model == 'log_reg':
+            self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        elif model == 'cnn':
+            self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
 
     def load_data(self, class_labels, train=0.85, val=0.15):
         print('Loading data...', end='\t\t\t')
@@ -105,10 +109,11 @@ class TrainModel:
         assert data.shape[0] == labels.shape[0]
         assert isinstance(train, float) and isinstance(val, float), "train and val must be of type float, not {0} and {1}".format(type(train), type(val))
         assert ((train + val) == 1.0), "train + val must equal 1.0"
-
+        
+        one_hot = pd.get_dummies(labels['labels'])
         sidx = int(data.shape[0]*train)
         _data  = {'train': data.iloc[:sidx].as_matrix(),   'val': data.iloc[sidx+1:].as_matrix()}
-        _labels= {'train': labels.iloc[:sidx].as_matrix(), 'val': labels.iloc[sidx+1:].as_matrix()}
+        _labels= {'train': one_hot.iloc[:sidx].as_matrix(), 'val': one_hot.iloc[sidx+1:].as_matrix()}
         print('[Done]')
 
         assert (_data['train'].shape[0] == _labels['train'].shape[0]) and (_data['val'].shape[0] == _labels['val'].shape[0])
@@ -118,69 +123,71 @@ class TrainModel:
     def train(self, save_path='saved_models/'):
         if not os.path.exists(save_path):
               os.makedirs(save_path)
+        
+        self.log_file = open('{0}/model_log.txt'.format(save_path), 'a')
+        mlog('{0} Training {1}'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), self.model.name), self.log_file)
+        self.log_file.write(
+            'Learning rate: {0}\nEpochs: {1}\nBatches: {2}\nBatch Size: {3}\n'.format(
+            self.model.LEARNING_RATE, self.model.EPOCHS, self.model.BATCHES, self.model.BATCH_SIZE
+            )
+        )
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
         c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
 
-        pred_train = self.model(x, reuse=False, is_training=True)
-        pred_test = self.model(x, reuse=True, is_training=False)
+        logits, probs = self.model(x)
+        correct_prediction = tf.equal(tf.argmax(probs, 1), tf.argmax(c, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        # Performance Metrics
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred_train, 1), tf.argmax(c, 1)), tf.float32))
-        taccuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(pred_test, 1), tf.argmax(c, 1)), tf.float32))
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=c))
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.model.LEARNING_RATE).minimize(cost)
 
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred_train, labels=c))
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.LEARNING_RATE).minimize(cost)
-
-        self.acc = np.zeros((self.EPOCHS), dtype=float)
-        self.tacc = np.zeros((self.EPOCHS), dtype=float)
+        self.acc = np.zeros((self.model.EPOCHS), dtype=float)
+        self.tacc = np.zeros((self.model.EPOCHS), dtype=float)
         saver = tf.train.Saver()
         
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
-            self.__minibatch_training(sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy)
+            self.__minibatch_training(sess, optimizer, accuracy, cost, x, c)
             
-            sp = saver.save(sess, "{0}/{1}.ckpt".format(self.model.name, save_path))
+            sp = saver.save(sess, "{0}/{1}.ckpt".format(save_path, self.model.name))
             print('Model saved in path: {0}'.format(sp))
     
-    def __minibatch_training(self, sess, optimizer, accuracy, cost, pred_train, pred_test, x, c, taccuracy):
+    def __minibatch_training(self, sess, optimizer, accuracy, cost, x, c):
 
         mlog('Training {0}'.format(self.model.name))
-        for epoch in range(self.EPOCHS):
-            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(taccuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
-            #if (epoch+1 % self.DISPLAY_STEP == 0):
-            print(sess.run(pred, feed_dict={x:self.data['train']}))
-            print('[Epoch {0}]'.format(epoch+1), end='\t')
-            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
-            print('Acc: {0}'.format(self.acc[epoch]))
-            
-            for batch in range(self.BATCHES):
-                if (batch+1 == self.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+        for epoch in range(self.model.EPOCHS):
+            for batch in range(self.model.BATCHES):
+                if (batch+1 == self.model.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
                 dx, dl = self.data['train'], self.labels['train']
 
-                ridx = np.random.randint(dx.shape[0], size=self.BATCH_SIZE)
+                ridx = np.random.randint(dx.shape[0], size=self.model.BATCH_SIZE)
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
                 sess.run(optimizer, feed_dict={x: xs, c:ls})
 
-            '''sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
 
             self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(taccuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
 
-            if (epoch+1 % self.DISPLAY_STEP == 0):
-                print('[Epoch {0}]'.format(epoch+1), end='\t')
-                print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
-                print('Acc: %.3f' % self.acc[epoch])'''
+            print('[Epoch {0}]'.format(epoch+1), end='\t')
+            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
+            print('Acc: %.3f' % self.acc[epoch])
 
     def plot_results(self, save_path='results/'):
         assert isinstance(save_path, str)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
+        self.log_file.write(
+            '\nFinal training accuracy: {0}\nFinal test accuracy: {1}\n'.format(
+            self.acc[-1], self.tacc[-1]
+            )
+        )
+        
         plt.plot(self.acc, color='red', linewidth=2, label='Training Accuracy')
         plt.plot(self.tacc, '--', color='black', linewidth=1, label='Test Accuracy')
         plt.xlabel('Epochs')
@@ -205,11 +212,17 @@ def mlog(message, File=None):
         print("=========================================")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser('')
+    
+    parser.add_argument('-model', default='cnn', type=str, help='Type of model to use')
+    
+    args = parser.parse_args()
+    
     # Define the class labels
     class_labels = {str(x):x for x in range(10)}
     class_labels.update({'\\pi':10, '\\times':11, '\\%':12, '-':13, '/':14, '<':15, '>':16, '\\div':17, '+':18})
     
     # Initialize training the model
-    model = TrainModel(class_labels=class_labels)
+    model = TrainModel(model=args.model, class_labels=class_labels)
     model.train()
     model.plot_results()
