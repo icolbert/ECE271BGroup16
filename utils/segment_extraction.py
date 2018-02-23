@@ -34,7 +34,7 @@ def extract_segments(img, pad=10) :
 
     return final
 
- def rescale_segment( segment, size = [28,28] ):
+def rescale_segment( segment, size = [28,28] ):
     '''
     function for resizing (scaling down) images
     input parameters
