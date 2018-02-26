@@ -1,10 +1,17 @@
 =========================================
-2018-02-19 21:33 Training CNN
+2018-02-25 16:52 Training LogReg
 =========================================
-Learning rate: 1e-05
-Epochs: 600
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-25 16:54 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
 Batches: 20
 Batch Size: 500
 
-Final training accuracy: 0.9901096224784851
-Final test accuracy: 0.9812268614768982
+Final training accuracy: 0.939631462097168
+Final test accuracy: 0.9116869568824768

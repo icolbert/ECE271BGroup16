@@ -104,6 +104,7 @@ class TrainModel:
     def load_data(self, class_labels, train=0.85, val=0.15):
         print('Loading data...', end='\t\t\t')
         data = pd.read_csv('data/final_data.csv', header=None)
+        data[data > 0] = 1
         labels = pd.read_csv('data/final_label.csv', header=None, names=['labels'])
         labels['labels'] = labels['labels'].map(class_labels)
         assert data.shape[0] == labels.shape[0]
@@ -116,13 +117,33 @@ class TrainModel:
         _labels= {'train': one_hot.iloc[:sidx].as_matrix(), 'val': one_hot.iloc[sidx+1:].as_matrix()}
         print('[Done]')
 
+        
         assert (_data['train'].shape[0] == _labels['train'].shape[0]) and (_data['val'].shape[0] == _labels['val'].shape[0])
         return _data, _labels
+    
+    def __call__(self, data, model_path='saved_models'):
+        assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
+
+        x = tf.placeholder(tf.float32, [None, self.IN_DIM])
+        logits, probs = self.model(x)
+
+        with tf.Session() as sess:
+            try:
+                tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
+                y = sess.run(probs, feed_dict={x: data})
+            except Exception as e:
+                print("Error: ", e)
+                self.train()
+                tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
+                y = sess.run(probs, feed_dict={x: data})
+
+        
+        return np.argmax(y, axis=0)
 
 
-    def train(self, save_path='saved_models/'):
-        if not os.path.exists(save_path):
-              os.makedirs(save_path)
+    def train(self, save_path='saved_models/', from_model=False):
+        if not os.path.exists('{0}/{1}/'.format(save_path, self.model.name)):
+              os.makedirs('{0}/{1}/'.format(save_path, self.model.name))
         
         self.log_file = open('{0}/model_log.txt'.format(save_path), 'a')
         mlog('{0} Training {1}'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), self.model.name), self.log_file)
@@ -144,15 +165,19 @@ class TrainModel:
 
         self.acc = np.zeros((self.model.EPOCHS), dtype=float)
         self.tacc = np.zeros((self.model.EPOCHS), dtype=float)
-        saver = tf.train.Saver()
+        self.saver = tf.train.Saver()
         
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
-            self.__minibatch_training(sess, optimizer, accuracy, cost, x, c)
+            if from_model: 
+                tf.train.Saver().restore(sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
+                self.__retraining(sess, optimizer, accuracy, cost, x, c)
+            else: 
+                self.__minibatch_training(sess, optimizer, accuracy, cost, x, c)
             
-            sp = saver.save(sess, "{0}/{1}.ckpt".format(save_path, self.model.name))
+            sp = self.saver.save(sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
             print('Model saved in path: {0}'.format(sp))
     
     def __minibatch_training(self, sess, optimizer, accuracy, cost, x, c):
@@ -176,6 +201,29 @@ class TrainModel:
             print('[Epoch {0}]'.format(epoch+1), end='\t')
             print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
             print('Acc: %.3f' % self.acc[epoch])
+    
+    def __retraining(self, sess, optimizer, accuracy, cost, x, c):
+
+        mlog('Training {0} from Saved Model'.format(self.model.name))
+        for epoch in range(50):
+            for batch in range(self.model.BATCHES):
+                if (batch+1 == self.model.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+                dx, dl = self.data['train'], self.labels['train']
+
+                ridx = np.random.randint(dx.shape[0], size=self.model.BATCH_SIZE)
+                xs, ls = dx[ridx,:], dl[ridx, :]
+
+                sess.run(optimizer, feed_dict={x: xs, c:ls})
+
+            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+
+            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
+            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+
+            print('[Epoch {0}]'.format(epoch+1), end='\t')
+            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
+            print('Acc: %.3f' % self.acc[epoch])
+
 
     def plot_results(self, save_path='results/'):
         assert isinstance(save_path, str)
@@ -224,5 +272,6 @@ if __name__ == '__main__':
     
     # Initialize training the model
     model = TrainModel(model=args.model, class_labels=class_labels)
-    model.train()
+    model.train(from_model=False)
     model.plot_results()
+    print(model(model.data[0]))
