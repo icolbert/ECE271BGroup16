@@ -46,7 +46,7 @@ class CNN(object):
         self.x_dim = x_dim
         self.c_dim = c_dim
         self.LEARNING_RATE = 1e-5
-        self.EPOCHS = 600
+        self.EPOCHS = 250
         self.BATCHES = 20
         self.BATCH_SIZE = 500
         self.name = 'CNN'
@@ -138,7 +138,7 @@ class TrainModel:
                 y = sess.run(probs, feed_dict={x: data})
 
         
-        return np.argmax(y, axis=0)
+        return np.argmax(y, axis=1)
 
 
     def train(self, save_path='saved_models/', from_model=False):
@@ -272,6 +272,8 @@ if __name__ == '__main__':
     
     # Initialize training the model
     model = TrainModel(model=args.model, class_labels=class_labels)
-    model.train(from_model=False)
-    model.plot_results()
-    print(model(model.data[0]))
+    #model.train(from_model=False)
+    #model.plot_results()
+    x = model.data['train'][0:2]
+    print(x.shape)
+    print(model(x))
