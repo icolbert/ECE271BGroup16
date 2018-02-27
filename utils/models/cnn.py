@@ -128,15 +128,8 @@ class TrainModel:
         logits, probs = self.model(x)
 
         with tf.Session() as sess:
-            try:
-                tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
-                y = sess.run(probs, feed_dict={x: data})
-            except Exception as e:
-                print("Error: ", e)
-                self.train()
-                tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
-                y = sess.run(probs, feed_dict={x: data})
-
+            tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
+            y = sess.run(probs, feed_dict={x: data})
         
         return np.argmax(y, axis=1)
 
@@ -274,6 +267,6 @@ if __name__ == '__main__':
     model = TrainModel(model=args.model, class_labels=class_labels)
     #model.train(from_model=False)
     #model.plot_results()
+
     x = model.data['train'][0:2]
-    print(x.shape)
     print(model(x))

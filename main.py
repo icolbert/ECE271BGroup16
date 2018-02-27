@@ -13,25 +13,35 @@ if __name__ == '__main__':
 
 	parser.add_argument('-model',
 		type=model_filter,
-		default='mlp',
-		#description='type of model'
+		default='cnn'
 		)
 
 	parser.add_argument('-train',
 		type=bool,
-		default=False,
-		#description='train?'
+		default=False
 		)
 
 	parser.add_argument('-path',
 		type=str,
-		default=None)
+		default=None
+		)
 
 	args = parser.parse_args()
 
-	if args.train:
-		y = input('file path: ')
-		print('train here')
+	class_labels = {str(x):x for x in range(10)}
+	class_labels.update({'\\pi':10, '\\times':11, '\\%':12, '-':13, '/':14, '<':15, '>':16, '\\div':17, '+':18})
+	label_class = dict(zip(class_labels.values(), class_labels.keys()))
 
-	x2 = pd.read_excel('labels.xlsx', sheet_name='eq_im_1')
-	print(x2)
+	eqns = np.load('data/equation_data/Equations_images_1.npy')
+	labels = pd.read_excel('data/equation_data/Equations_labels.xlsx', sheet_name='Equations_images_1_labels')
+	eqn1, label1 = eqns[0], labels.iloc[0].values
+	
+	model = TrainModel(model=args.model, class_labels=class_labels)
+	for c in range(len(eqns)):
+		print('\nEquation = ',c)
+		segments= extract_segments(eqns[c], 30, reshape=1, size=[28,28])
+		pred = ''
+		for segment in segments:
+			pred += label_class[model(segment.reshape(1,-1))[0]] + ' '
+		print('Model result: ', pred)
+
