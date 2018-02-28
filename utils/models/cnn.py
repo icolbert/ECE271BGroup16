@@ -25,8 +25,8 @@ class LogReg():
         self.BATCH_SIZE = 500
         self.name = 'LogReg'
     
-    def __call__(self, x, reuse=True):
-        with tf.variable_scope(self.name) as vs:
+    def __call__(self, x):
+        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
             fc = tcl.fully_connected(
                 x, self.c_dim,
                 weights_initializer=tf.random_normal_initializer(stddev=2),
@@ -52,36 +52,37 @@ class CNN(object):
         self.name = 'CNN'
 
     def __call__(self, x, reuse=True):
-        x = tf.reshape(x, [-1, 28, 28, 1])
-        conv1 = tc.layers.convolution2d(
-            x, 64, [4, 4], [2, 2],
-            weights_initializer=tf.random_normal_initializer(stddev=0.02),
-            activation_fn=tf.identity
-        )
-        conv1 = leaky_relu(conv1)
-        
+        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
+            x = tf.reshape(x, [-1, 28, 28, 1])
+            conv1 = tc.layers.convolution2d(
+                x, 64, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            conv1 = leaky_relu(conv1)
+            
 
-        conv2 = tc.layers.convolution2d(
-            conv1, 128, [4, 4], [2, 2],
-            weights_initializer=tf.random_normal_initializer(stddev=0.02),
-            activation_fn=tf.identity
-        )
-        conv2 = leaky_relu(conv2)
-        
-        fc1 = tc.layers.fully_connected(
-            tcl.flatten(conv2), 1024,
-            weights_initializer=tf.random_normal_initializer(stddev=0.02),
-            activation_fn=tf.identity
-        )
-        fc1 = leaky_relu(fc1)
-        
-        fc2 = tc.layers.fully_connected(
-            fc1, self.c_dim,
-            weights_initializer=tf.random_normal_initializer(stddev=0.02),
-            activation_fn=tf.identity
-        )
-        
-        return fc2, tf.nn.softmax(fc2)
+            conv2 = tc.layers.convolution2d(
+                conv1, 128, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            conv2 = leaky_relu(conv2)
+            
+            fc1 = tc.layers.fully_connected(
+                tcl.flatten(conv2), 512,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            fc1 = leaky_relu(fc1)
+            
+            fc2 = tc.layers.fully_connected(
+                fc1, self.c_dim,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            
+            return fc2, tf.nn.softmax(fc2)
 
     @property
     def vars(self):
@@ -97,8 +98,10 @@ class TrainModel:
         self.DISPLAY_STEP = 10
 
         if model == 'log_reg':
+            print('Using Logistic Regression')
             self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
         elif model == 'cnn':
+            print('Using CNN')
             self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
 
     def load_data(self, class_labels, train=0.85, val=0.15):
@@ -128,6 +131,7 @@ class TrainModel:
         logits, probs = self.model(x)
 
         with tf.Session() as sess:
+            #new_saver = tf.train.import_meta_graph('my_test_model-1000.meta')
             tf.train.Saver().restore(sess, '{0}/{1}/{1}.ckpt'.format(model_path, self.model.name))
             y = sess.run(probs, feed_dict={x: data})
         
@@ -146,75 +150,76 @@ class TrainModel:
             )
         )
 
-        x = tf.placeholder(tf.float32, [None, self.IN_DIM])
-        c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
+        self.x = tf.placeholder(tf.float32, [None, self.IN_DIM])
+        self.c = tf.placeholder(tf.float32, [None, self.NUM_CLASSES])
 
-        logits, probs = self.model(x)
-        correct_prediction = tf.equal(tf.argmax(probs, 1), tf.argmax(c, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        self.logits, self.probs = self.model(self.x)
+        self.correct_prediction = tf.equal(tf.argmax(self.probs, 1), tf.argmax(self.c, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=c))
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.model.LEARNING_RATE).minimize(cost)
+        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.logits, labels=self.c))
+        with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.model.LEARNING_RATE, beta1=0.5, beta2=0.9).minimize(self.cost, var_list=self.model.vars)
 
         self.acc = np.zeros((self.model.EPOCHS), dtype=float)
         self.tacc = np.zeros((self.model.EPOCHS), dtype=float)
         self.saver = tf.train.Saver()
         
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            sess.run(tf.local_variables_initializer())
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.local_variables_initializer())
 
-            if from_model: 
-                tf.train.Saver().restore(sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
-                self.__retraining(sess, optimizer, accuracy, cost, x, c)
-            else: 
-                self.__minibatch_training(sess, optimizer, accuracy, cost, x, c)
-            
-            sp = self.saver.save(sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
-            print('Model saved in path: {0}'.format(sp))
+        if from_model: 
+            print('Training from saved model')
+            self.saver.restore(self.sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
+            self.__retraining()
+        else: 
+            self.__minibatch_training()
+        
+        sp = self.saver.save(self.sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
+        print('Model saved in path: {0}'.format(sp))
     
-    def __minibatch_training(self, sess, optimizer, accuracy, cost, x, c):
+    def __minibatch_training(self):
 
         mlog('Training {0}'.format(self.model.name))
         for epoch in range(self.model.EPOCHS):
             for batch in range(self.model.BATCHES):
-                if (batch+1 == self.model.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+                if (batch+1 == self.model.BATCHES): self.sess.run(self.optimizer, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
                 dx, dl = self.data['train'], self.labels['train']
 
                 ridx = np.random.randint(dx.shape[0], size=self.model.BATCH_SIZE)
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
-                sess.run(optimizer, feed_dict={x: xs, c:ls})
+                self.sess.run(self.optimizer, feed_dict={self.x: xs, self.c:ls})
+            self.sess.run(self.optimizer, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
 
-            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
-
-            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.acc[epoch] = self.sess.run(self.accuracy, feed_dict={self.x:self.data['train'], self.c:self.labels['train']})
+            self.tacc[epoch] = self.sess.run(self.accuracy, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
 
             print('[Epoch {0}]'.format(epoch+1), end='\t')
-            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
+            print('Cost: %.5f' % self.sess.run(self.cost, feed_dict={self.x: self.data['train'], self.c:self.labels['train']}), end='\t')
             print('Acc: %.3f' % self.acc[epoch])
     
-    def __retraining(self, sess, optimizer, accuracy, cost, x, c):
+    def __retraining(self):
 
         mlog('Training {0} from Saved Model'.format(self.model.name))
         for epoch in range(50):
             for batch in range(self.model.BATCHES):
-                if (batch+1 == self.model.BATCHES): sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+                if (batch+1 == self.model.BATCHES): self.sess.run(self.optimizer, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
                 dx, dl = self.data['train'], self.labels['train']
 
                 ridx = np.random.randint(dx.shape[0], size=self.model.BATCH_SIZE)
                 xs, ls = dx[ridx,:], dl[ridx, :]
 
-                sess.run(optimizer, feed_dict={x: xs, c:ls})
+                self.sess.run(self.optimizer, feed_dict={self.x: xs, self.c:ls})
 
-            sess.run(optimizer, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.sess.run(self.optimizer, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
 
-            self.acc[epoch] = sess.run(accuracy, feed_dict={x:self.data['train'], c:self.labels['train']})
-            self.tacc[epoch] = sess.run(accuracy, feed_dict={x:self.data['val'], c:self.labels['val']})
+            self.acc[epoch] = self.sess.run(self.accuracy, feed_dict={self.x:self.data['train'], self.c:self.labels['train']})
+            self.tacc[epoch] = self.sess.run(self.accuracy, feed_dict={self.x:self.data['val'], self.c:self.labels['val']})
 
             print('[Epoch {0}]'.format(epoch+1), end='\t')
-            print('Cost: %.5f' % sess.run(cost, feed_dict={x: self.data['train'], c:self.labels['train']}), end='\t')
+            print('Cost: %.5f' % self.sess.run(self.cost, feed_dict={self.x: self.data['train'], self.c:self.labels['train']}), end='\t')
             print('Acc: %.3f' % self.acc[epoch])
 
 
@@ -265,8 +270,7 @@ if __name__ == '__main__':
     
     # Initialize training the model
     model = TrainModel(model=args.model, class_labels=class_labels)
-    #model.train(from_model=False)
-    #model.plot_results()
-
-    x = model.data['train'][0:2]
+    model.train(from_model=False)
+    model.plot_results()
+    x = model.data['val'][0:2]
     print(model(x))

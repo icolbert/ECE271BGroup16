@@ -46,3 +46,76 @@ Learning rate: 1e-05
 Epochs: 250
 Batches: 20
 Batch Size: 500
+=========================================
+2018-02-27 17:11 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:12 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:13 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:13 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:14 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:15 Training LogReg
+=========================================
+Learning rate: 0.001
+Epochs: 1000
+Batches: 20
+Batch Size: 500
+
+Final training accuracy: 0.0
+Final test accuracy: 0.0
+=========================================
+2018-02-27 17:21 Training CNN
+=========================================
+Learning rate: 1e-05
+Epochs: 250
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:21 Training CNN
+=========================================
+Learning rate: 1e-05
+Epochs: 250
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:22 Training CNN
+=========================================
+Learning rate: 1e-05
+Epochs: 250
+Batches: 20
+Batch Size: 500
+=========================================
+2018-02-27 17:23 Training CNN
+=========================================
+Learning rate: 1e-05
+Epochs: 250
+Batches: 20
+Batch Size: 500
