@@ -69,15 +69,15 @@ class CNN(object):
             )
             conv2 = leaky_relu(conv2)
             
-            fc1 = tc.layers.fully_connected(
+            '''fc1 = tc.layers.fully_connected(
                 tcl.flatten(conv2), 512,
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
-            fc1 = leaky_relu(fc1)
+            fc1 = leaky_relu(fc1)'''
             
             fc2 = tc.layers.fully_connected(
-                fc1, self.c_dim,
+                tcl.flatten(conv2), self.c_dim,
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
