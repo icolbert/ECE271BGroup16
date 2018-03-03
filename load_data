@@ -1,0 +1,26 @@
+path = '/Users/josejoy/Desktop/ECE 271B Stat Learning /project/Data/'
+class_labels = {str(x):x for x in range(10)}
+class_labels.update({'pi':10, 'times':11, '+':12, ',':13, '-':14, 'sqrt':15 })
+label_class = dict( zip(class_labels.values(), class_labels.keys() ))
+
+def load_data(class_labels, train=0.7, val=0.3):
+    data = pd.DataFrame( np.load(path + 'final_data.npy') )
+    labels = pd.DataFrame( np.load(path + 'final_labels.npy') )
+    labels = labels.rename(columns = {0:'labels'})
+    
+    labels['labels'] = labels['labels'].map(class_labels)
+    assert data.shape[0] == labels.shape[0]
+    assert isinstance(train, float)
+    isinstance(val, float), "train and val must be of type float, not {0} and {1}".format(type(train), type(val))
+    assert ((train + val) == 1.0), "train + val must equal 1.0"
+
+    one_hot = pd.get_dummies(labels['labels'])
+    sidx = int(data.shape[0]*train)
+    _data  = {'train': data.iloc[:sidx].as_matrix(),   'val': data.iloc[sidx+1:].as_matrix()}
+    _labels= {'train': one_hot.iloc[:sidx,:].as_matrix(), 'val': one_hot.iloc[sidx+1:,:].as_matrix()}
+
+    assert (_data['train'].shape[0] == _labels['train'].shape[0])
+    assert (_data['val'].shape[0] == _labels['val'].shape[0])
+    return _data, _labels
+
+data, labels = load_data(class_labels)
