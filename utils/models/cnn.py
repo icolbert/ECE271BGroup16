@@ -46,7 +46,7 @@ class CNN(object):
         self.x_dim = x_dim
         self.c_dim = c_dim
         self.LEARNING_RATE = 2.5e-4
-        self.EPOCHS = 50
+        self.EPOCHS = 1
         self.BATCHES = 20
         self.BATCH_SIZE = 500
         self.name = 'CNN'
@@ -131,8 +131,8 @@ class TrainModel:
         train : fraction of samples used in training set (float)
         val : fraction of samples used in training set (float)
         '''
-        data = pd.DataFrame(np.load('data/training-data/data_ver{0}'.format(self.ver)))
-        labels = pd.DataFrame(np.load('data/training-data/labels_ver{0}'.format(self.ver)))
+        data = pd.DataFrame(np.load('data/training-data/data_ver{0}.npy'.format(self.ver)))
+        labels = pd.DataFrame(np.load('data/training-data/labels_ver{0}.npy'.format(self.ver)))
         
         labels = labels.rename(columns = {0:'labels'})
         

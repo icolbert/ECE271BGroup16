@@ -129,3 +129,13 @@ Batch Size: 500
 
 Final training accuracy: 0.9188709855079651
 Final test accuracy: 0.9090428352355957
+=========================================
+2018-03-06 21:53 Training CNN_ver1
+=========================================
+Learning rate: 0.00025
+Epochs: 1
+Batches: 20
+Batch Size: 500
+
+Final training accuracy: 0.7992631793022156
+Final test accuracy: 0.8139392137527466
