@@ -55,7 +55,7 @@ class CNN(object):
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
             x = tf.reshape(x, [-1, 28, 28, 1])
             conv1 = tc.layers.convolution2d(
-                x, 64, [4, 4], [2, 2],
+                x, 64, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
@@ -63,7 +63,7 @@ class CNN(object):
             
 
             conv2 = tc.layers.convolution2d(
-                conv1, 128, [4, 4], [2, 2],
+                conv1, 128, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
@@ -92,6 +92,7 @@ class TrainModel:
     def __init__(self, model='cnn', **kwargs):
         assert isinstance(model, str), "the model type must be a string, not a {0}".format(type(model))
         
+        self.ver = kwargs.pop('data_ver', 1)
         self.data, self.labels = self.load_data(kwargs.pop('class_labels', False))
         self.IN_DIM = self.data['train'].shape[1]
         self.NUM_CLASSES = self.labels['train'].shape[1]
@@ -103,8 +104,11 @@ class TrainModel:
         elif model == 'cnn':
             print('Using CNN')
             self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        
+        self.model.name = self.model.name+'_ver{0}'.format(self.ver)
 
-    def load_data(self, class_labels, train=0.85, val=0.15):
+        '''
+        def load_data(self, class_labels, train=0.85, val=0.15):
         print('Loading data...', end='\t\t\t')
         data = pd.read_csv('data/final_data.csv', header=None)
         data[data > 0] = 1
@@ -123,6 +127,38 @@ class TrainModel:
         
         assert (_data['train'].shape[0] == _labels['train'].shape[0]) and (_data['val'].shape[0] == _labels['val'].shape[0])
         return _data, _labels
+        '''
+
+    def load_data(self, class_labels, train=0.85, val=0.15):
+        '''
+        Function to Load data from .npy files and split them into training and validation sets
+        Inputs
+        class labels : Dictionary of class labels (dict)
+        data_name : name of .npy data file, with path (str)
+        label_name : name of .npy label file, with path (str)
+        train : fraction of samples used in training set (float)
+        val : fraction of samples used in training set (float)
+        '''
+        data = pd.DataFrame(np.load('data/training-data/data_ver{0}'.format(self.ver)))
+        labels = pd.DataFrame(np.load('data/training-data/labels_ver{0}'.format(self.ver)))
+        
+        labels = labels.rename(columns = {0:'labels'})
+        
+        labels['labels'] = labels['labels'].map(class_labels)
+        assert data.shape[0] == labels.shape[0]
+        assert isinstance(train, float)
+        isinstance(val, float), "train and val must be of type float, not {0} and {1}".format(type(train), type(val))
+        assert ((train + val) == 1.0), "train + val must equal 1.0"
+
+        one_hot = pd.get_dummies(labels['labels'])
+        sidx = int(data.shape[0]*train)
+        _data  = {'train': data.iloc[:sidx].as_matrix(),   'val': data.iloc[sidx+1:].as_matrix()}
+        _labels= {'train': one_hot.iloc[:sidx,:].as_matrix(), 'val': one_hot.iloc[sidx+1:,:].as_matrix()}
+
+        assert (_data['train'].shape[0] == _labels['train'].shape[0])
+        assert (_data['val'].shape[0] == _labels['val'].shape[0])
+        return _data, _labels
+
     
     def __call__(self, data, model_path='saved_models'):
         assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
@@ -266,10 +302,11 @@ if __name__ == '__main__':
     
     # Define the class labels
     class_labels = {str(x):x for x in range(10)}
-    class_labels.update({'\\pi':10, '\\times':11, '\\%':12, '-':13, '/':14, '<':15, '>':16, '\\div':17, '+':18})
+    class_labels.update({'+':10, 'times':11, '-':12 })
+    label_class = dict( zip(class_labels.values(), class_labels.keys() ))
     
     # Initialize training the model
-    model = TrainModel(model=args.model, class_labels=class_labels)
+    model = TrainModel(model=args.model, class_labels=class_labels, data_ver=1)
     model.train(from_model=False)
     model.plot_results()
     x = model.data['val'][0:2]
