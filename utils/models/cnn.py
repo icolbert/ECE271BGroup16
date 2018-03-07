@@ -45,8 +45,8 @@ class CNN(object):
     def __init__(self, x_dim, c_dim):
         self.x_dim = x_dim
         self.c_dim = c_dim
-        self.LEARNING_RATE = 1e-5
-        self.EPOCHS = 250
+        self.LEARNING_RATE = 2.5e-4
+        self.EPOCHS = 50
         self.BATCHES = 20
         self.BATCH_SIZE = 500
         self.name = 'CNN'
@@ -55,26 +55,18 @@ class CNN(object):
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
             x = tf.reshape(x, [-1, 28, 28, 1])
             conv1 = tc.layers.convolution2d(
-                x, 64, [3, 3], [2, 2],
+                x, 128, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
             conv1 = leaky_relu(conv1)
-            
 
             conv2 = tc.layers.convolution2d(
-                conv1, 128, [3, 3], [2, 2],
+                conv1, 512, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
             conv2 = leaky_relu(conv2)
-            
-            '''fc1 = tc.layers.fully_connected(
-                tcl.flatten(conv2), 512,
-                weights_initializer=tf.random_normal_initializer(stddev=0.02),
-                activation_fn=tf.identity
-            )
-            fc1 = leaky_relu(fc1)'''
             
             fc2 = tc.layers.fully_connected(
                 tcl.flatten(conv2), self.c_dim,
@@ -309,5 +301,5 @@ if __name__ == '__main__':
     model = TrainModel(model=args.model, class_labels=class_labels, data_ver=1)
     model.train(from_model=False)
     model.plot_results()
-    x = model.data['val'][0:2]
+    x = model.data['val'][0:8]
     print(model(x))
