@@ -38,29 +38,34 @@ if __name__ == '__main__':
 	class_labels = {str(x):x for x in range(10)}
 	class_labels.update({'+':10, 'times':11, '-':12 })
 	label_class = dict( zip(class_labels.values(), class_labels.keys() ))
-	CNN = LoadModel(model=args.model, class_labels=class_labels, data_ver=args.data_ver)
-	x = CNN.data['val'][0:2]
-	print(CNN(x))
+	model = LoadModel(model=args.model, class_labels=class_labels, data_ver=args.data_ver)
+	x = model.data['val'][0:2]
+	print(model(x))
 
 	path1 = 'data/equation-data/'
 	temp1 = np.load(path1+'Equations_images_1.npy')
 	temp2 = np.load(path1+'Equations_images_2.npy')
 	temp3 = np.load(path1+'Equations_images_3.npy')
 	temp4 = np.load(path1+'Equations_images_4.npy')
-	eqn_full = [temp1,temp2,temp3,temp4]
+	eqn_full = [temp4]
 
-	RFILE = open('cnn-results-ver{0}.txt'.format(args.data_ver))
+	RFILE = open('cnn-results-ver{0}.txt'.format(args.data_ver), 'w')
 	for eqns in eqn_full:
 		for c in range(len(eqns)):
 			eqn1 = eqns[c]
-			segments= preprocess.extract_segments(eqn1, 40, reshape = 1, size = [28,28], 
-												area=150, gray = True, dil = True,  ker = 1)
+			segments= preprocess.extract_segments(eqn1, 30, reshape = 1, size = [28,28], 
+												area=100, gray = True, dil = True,  ker = 2)
+			cnn_pred = ''
 			for i in range(len(segments)):
 				temp = segments[i]
+				'''plt.imshow(temp, cmap='gray')
+				plt.show()'''
 				temp = temp.reshape(1,-1)
-				cnn_pred_ver1 += label_class[model.predict(temp)[0]]
+				cnn_pred += label_class[model.predict(temp)[0]]+' '
 			
-			print(cnn_pred_ver1)
+			RFILE.write(cnn_pred+'\n')
+			print(cnn_pred)
+		print('[Done]')
 
 	'''path = 'saved_models'
 	adastage1_ver1,adadigits_ver1, adachars_ver1, rfmodel_ver1, MLP_single_ver1, CNN_ver_1 = preprocess.load_models(path,1,class_labels)
