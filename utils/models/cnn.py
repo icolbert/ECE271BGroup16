@@ -46,7 +46,7 @@ class CNN(object):
         self.x_dim = x_dim
         self.c_dim = c_dim
         self.LEARNING_RATE = 2.5e-4
-        self.EPOCHS = 1
+        self.EPOCHS = 30
         self.BATCHES = 20
         self.BATCH_SIZE = 500
         self.name = 'CNN'
@@ -289,6 +289,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     
     parser.add_argument('-model', default='cnn', type=str, help='Type of model to use')
+    parser.add_argument('-ver', default=1, type=int, help='Version of dataset to use' )
     
     args = parser.parse_args()
     
@@ -298,8 +299,8 @@ if __name__ == '__main__':
     label_class = dict( zip(class_labels.values(), class_labels.keys() ))
     
     # Initialize training the model
-    model = TrainModel(model=args.model, class_labels=class_labels, data_ver=1)
-    model.train(from_model=False)
-    model.plot_results()
+    model = TrainModel(model=args.model, class_labels=class_labels, data_ver=args.ver)
+    #model.train(from_model=False)
+    #model.plot_results()
     x = model.data['val'][0:8]
     print(model(x))
