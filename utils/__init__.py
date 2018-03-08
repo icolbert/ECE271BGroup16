@@ -20,7 +20,7 @@ class LoadModel(TrainModel):
         
         TrainModel.__init__(self, model=model, class_labels=kwargs.pop('class_labels', False), data_ver=kwargs.pop('data_ver', 1))
 
-    def predict(self, data):
+    def predict(self, data, model_path='saved_models'):
         assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])

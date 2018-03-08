@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 import matplotlib
-matplotlib.use('pdf')
+#matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
 

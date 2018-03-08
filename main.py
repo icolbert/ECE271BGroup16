@@ -1,8 +1,10 @@
 import argparse
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
-from utils import *
+from utils import LoadModel
+from utils import preprocess
 
 def model_filter(x):
 	x = str(x)
@@ -40,14 +42,43 @@ if __name__ == '__main__':
 	x = model.data['val'][0:2]
 	print(model(x))
 
-	eqns = np.load('data/equation-data/Equations_images_1.npy')
-	#labels = pd.read_excel('data/equation-data/Equations_labels.xlsx', sheet_name='Equations_images_1_labels')
-	eqn1 = eqns[0]
+	path1 = 'data/equation-data/'
+	temp1 = np.load(path1+'Equations_images_1.npy')
+	temp2 = np.load(path1+'Equations_images_2.npy')
+	temp3 = np.load(path1+'Equations_images_3.npy')
+	temp4 = np.load(path1+'Equations_images_4.npy')
+	eqn_full = [temp1,temp2,temp3,temp4]
 
-	for c in range(len(eqns)):
-		print('\nEquation = ',c)
-		segments= extract_segments(eqns[c], 30, reshape=1, size=[28,28])
-		pred = ''
-		for segment in segments:
-			pred += label_class[model(segment.reshape(1,-1))[0]] + ' '
-		print('Model result: ', pred)
+	for eqns in eqn_full:
+		for c in range(len(eqns)):
+			# initialising strings to store output of model predictions
+			rf_pred_ver1 = ''
+			ada_pred_ver1 = ''
+			mlp_pred_ver1 = ''
+			rf_pred_ver2 = ''
+			ada_pred_ver2 = ''
+			mlp_pred_ver2 = ''
+			cnn_pred_ver1 = ''
+
+	#         print('\nEquation = ',c)
+			eqn1 = eqns[c]
+			# extract segments (digits/symbols) from each equation image
+			segments= preprocess.extract_segments(eqn1, 40, reshape = 1, size = [28,28], 
+												area=150, gray = True, dil = True,  ker = 1)
+
+			# run prediction on each segment
+			#plt.figure(figsize=(20,20))
+			'''plt.imshow(eqn1, cmap='gray')
+			plt.show()
+			print(len(segments))'''
+			for i in range(len(segments)):
+				temp = segments[i]
+				temp = temp.reshape(1,-1)
+				cnn_pred_ver1 += label_class[model.predict(temp)[0]]
+			
+			print(cnn_pred_ver1)
+
+
+
+					
+			#plt.show()
