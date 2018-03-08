@@ -90,14 +90,11 @@ class TrainModel:
         self.NUM_CLASSES = self.labels['train'].shape[1]
         self.DISPLAY_STEP = 10
 
-        if model == 'log_reg':
-            print('Using Logistic Regression')
-            self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
-        elif model == 'cnn':
-            print('Using CNN')
-            self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        if model == 'log_reg': self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        elif model == 'cnn': self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
         
         self.model.name = self.model.name+'_ver{0}'.format(self.ver)
+        print('Using {0}'.format(self.model.name))
 
         '''
         def load_data(self, class_labels, train=0.85, val=0.15):

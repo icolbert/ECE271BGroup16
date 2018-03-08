@@ -18,7 +18,7 @@ class LoadModel(TrainModel):
     def __init__(self,model='cnn', **kwargs):
         assert isinstance(model, str), "the model type must be a string, not a {0}".format(type(model))
         
-        TrainModel.__init__(self, model=model, class_labels=kwargs.pop('class_labels', False))
+        TrainModel.__init__(self, model=model, class_labels=kwargs.pop('class_labels', False), data_ver=kwargs.pop('data_ver', 1))
 
     def predict(self, data):
         assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
