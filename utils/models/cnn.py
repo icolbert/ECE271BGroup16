@@ -25,7 +25,8 @@ class LogReg():
         self.BATCH_SIZE = 500
         self.name = 'LogReg'
     
-    def __call__(self, x):
+    def __call__(self, x, reuse=False):
+        #with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
             fc = tcl.fully_connected(
                 x, self.c_dim,
@@ -46,30 +47,51 @@ class CNN(object):
         self.x_dim = x_dim
         self.c_dim = c_dim
         self.LEARNING_RATE = 2.5e-4
-        self.EPOCHS = 30
-        self.BATCHES = 20
-        self.BATCH_SIZE = 500
+        self.EPOCHS = 100
+        self.BATCHES = 25
+        self.BATCH_SIZE = 128
         self.name = 'CNN'
 
-    def __call__(self, x, reuse=True):
+    def __call__(self, x, reuse=False):
+        #with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
             x = tf.reshape(x, [-1, 28, 28, 1])
             conv1 = tc.layers.convolution2d(
-                x, 128, [3, 3], [2, 2],
+                x, 64, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
             conv1 = leaky_relu(conv1)
 
             conv2 = tc.layers.convolution2d(
-                conv1, 512, [3, 3], [2, 2],
+                conv1, 64, [3, 3], [2, 2],
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
             conv2 = leaky_relu(conv2)
             
+            conv3 = tc.layers.convolution2d(
+                conv2, 128, [3, 3], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            conv3 = leaky_relu(conv3)
+            
+            fc1 = tc.layers.fully_connected(
+                tcl.flatten(conv3), 512,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.nn.relu
+            )
+            
+
             fc2 = tc.layers.fully_connected(
-                tcl.flatten(conv2), self.c_dim,
+                tcl.flatten(conv3), 256,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.nn.relu
+            )
+            
+            fc2 = tc.layers.fully_connected(
+                tcl.flatten(conv3), self.c_dim,
                 weights_initializer=tf.random_normal_initializer(stddev=0.02),
                 activation_fn=tf.identity
             )
@@ -90,11 +112,14 @@ class TrainModel:
         self.NUM_CLASSES = self.labels['train'].shape[1]
         self.DISPLAY_STEP = 10
 
-        if model == 'log_reg': self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
-        elif model == 'cnn': self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        if model == 'log_reg':
+            print('Using Logistic Regression')
+            self.model = LogReg(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
+        elif model == 'cnn':
+            print('Using CNN')
+            self.model = CNN(x_dim=self.IN_DIM, c_dim=self.NUM_CLASSES)
         
         self.model.name = self.model.name+'_ver{0}'.format(self.ver)
-        print('Using {0}'.format(self.model.name))
 
         '''
         def load_data(self, class_labels, train=0.85, val=0.15):
@@ -149,11 +174,11 @@ class TrainModel:
         return _data, _labels
 
     
-    def __call__(self, data, model_path='saved_models'):
+    def __call__(self, data, model_path='saved_models', **kwargs):
         assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
-        logits, probs = self.model(x)
+        logits, probs = self.model(x, reuse=kwargs.pop('reuse', True))
 
         with tf.Session() as sess:
             #new_saver = tf.train.import_meta_graph('my_test_model-1000.meta')
@@ -182,7 +207,7 @@ class TrainModel:
         self.correct_prediction = tf.equal(tf.argmax(self.probs, 1), tf.argmax(self.c, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.logits, labels=self.c))
+        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.c))
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.model.LEARNING_RATE, beta1=0.5, beta2=0.9).minimize(self.cost, var_list=self.model.vars)
 
@@ -201,6 +226,8 @@ class TrainModel:
         else: 
             self.__minibatch_training()
         
+        
+        #sp = tf.keras.models.save_model(self.sess, "{0}/{1}/{1}.h5".format(save_path, self.model.name))
         sp = self.saver.save(self.sess, "{0}/{1}/{1}.ckpt".format(save_path, self.model.name))
         print('Model saved in path: {0}'.format(sp))
     
@@ -286,7 +313,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     
     parser.add_argument('-model', default='cnn', type=str, help='Type of model to use')
-    parser.add_argument('-ver', default=1, type=int, help='Version of dataset to use' )
+    parser.add_argument('-ver', default=2, type=int, help='version of data to use')
     
     args = parser.parse_args()
     
@@ -297,7 +324,7 @@ if __name__ == '__main__':
     
     # Initialize training the model
     model = TrainModel(model=args.model, class_labels=class_labels, data_ver=args.ver)
-    #model.train(from_model=False)
-    #model.plot_results()
-    x = model.data['val'][0:8]
-    print(model(x))
+    model.train(from_model=False)
+    model.plot_results()
+    #x = model.data['val'][0:8]
+    #print(model(x, reuse=True))
