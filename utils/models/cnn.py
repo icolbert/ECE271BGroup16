@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 import matplotlib
-#matplotlib.use('pdf')
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
 
@@ -25,9 +25,9 @@ class LogReg():
         self.BATCH_SIZE = 500
         self.name = 'LogReg'
     
-    def __call__(self, x, reuse=False):
+    def __call__(self, x, reuse=tf.AUTO_REUSE):
         #with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
+        with tf.variable_scope(self.name, reuse=reuse) as vs:
             fc = tcl.fully_connected(
                 x, self.c_dim,
                 weights_initializer=tf.random_normal_initializer(stddev=2),
@@ -52,9 +52,9 @@ class CNN(object):
         self.BATCH_SIZE = 128
         self.name = 'CNN'
 
-    def __call__(self, x, reuse=False):
+    def __call__(self, x, reuse=tf.AUTO_REUSE):
         #with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE) as vs:
+        with tf.variable_scope(self.name, reuse=reuse) as vs:
             x = tf.reshape(x, [-1, 28, 28, 1])
             conv1 = tc.layers.convolution2d(
                 x, 64, [3, 3], [2, 2],
