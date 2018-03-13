@@ -178,7 +178,7 @@ class TrainModel:
         assert (data.shape[1] == self.IN_DIM), "Need to have the same dimension data and labels as what it was trained on"
 
         x = tf.placeholder(tf.float32, [None, self.IN_DIM])
-        logits, probs = self.model(x, reuse=kwargs.pop('reuse', True))
+        logits, probs = self.model(x)
 
         with tf.Session() as sess:
             #new_saver = tf.train.import_meta_graph('my_test_model-1000.meta')
