@@ -2,9 +2,12 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import torch
 
 from utils import LoadModel
 from utils import preprocess
+
+from torch_cnn import CNN
 
 def model_filter(x):
 	x = str(x)
@@ -41,6 +44,11 @@ if __name__ == '__main__':
 	model = LoadModel(model=args.model, class_labels=class_labels, data_ver=args.data_ver)
 	x = model.data['val'][0:2]
 	print(model(x))
+
+	ckpt = torch.load('cnn.pkl')
+	pt_model = CNN()
+	pt_model.load_state_dict(ckpt['state_dict'])
+	print(pt_model(x))
 
 	path1 = 'data/equation-data/'
 	temp1 = np.load(path1+'Equations_images_1.npy')
