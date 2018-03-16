@@ -149,9 +149,19 @@ def load_models(path, ver = 1):
         MLP_single_ver1.load_weights(path+"MLP_singlestage_ver1.1.h5")
         adam1 = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
         MLP_single_ver1.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam1,metrics=['accuracy'] )
-        
-        print("Loaded model from disk")
-        return adastage1_ver1,adadigits_ver1, adachars_ver1, rfmodel_ver1, MLP_single_ver1
+        print("Loaded MLP model from disk")
+
+        json_file = open(path+'cnn_v1.json')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        cnn_v1 = model_from_json(loaded_model_json)
+        cnn_v1.load_weights(path+'cnn_v1.h5')
+        cnn_v1.compile(loss=keras.losses.categorical_crossentropy,
+            optimizer=keras.optimizers.Adam(),
+            metrics=['accuracy'])
+        print('Loaded CNN-ver1 from disk')
+
+        return adastage1_ver1,adadigits_ver1, adachars_ver1, rfmodel_ver1, MLP_single_ver1, cnn_v1
        
     if ver == 2:
         with open(path+'Adaboost_stage1_ver2.1.sav','rb') as f:
@@ -171,9 +181,19 @@ def load_models(path, ver = 1):
         MLP_single_ver2.load_weights(path+"MLP_singlestage_ver2.1.h5")
         adam1 = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
         MLP_single_ver2.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam1,metrics=['accuracy'] )
-
         print("Loaded model from disk")
-        return adastage1_ver2,adadigits_ver2, adachars_ver2, rfmodel_ver2, MLP_single_ver2
+
+        json_file = open(path+'cnn_v2.json')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        cnn_v2 = model_from_json(loaded_model_json)
+        cnn_v2.load_weights(path+'cnn_v2.h5')
+        cnn_v2.compile(loss=keras.losses.categorical_crossentropy,
+            optimizer=keras.optimizers.Adam(),
+            metrics=['accuracy'])
+        print('Loaded CNN-ver2 from disk')
+
+        return adastage1_ver2,adadigits_ver2, adachars_ver2, rfmodel_ver2, MLP_single_ver2, cnn_v2
     
     
 def predict(temp, label_class, adastage1 = None,adadigits= None, adachars= None

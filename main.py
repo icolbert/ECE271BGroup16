@@ -45,10 +45,11 @@ if __name__ == '__main__':
 	x = model.data['val'][0:2]
 	print(model(x))
 
+	'''	
 	ckpt = torch.load('cnn.pkl')
 	pt_model = CNN()
 	pt_model.load_state_dict(ckpt['state_dict'])
-	print(pt_model(x))
+	print(pt_model(x))'''
 
 	path1 = 'data/equation-data/'
 	temp1 = np.load(path1+'Equations_images_1.npy')
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 	temp4 = np.load(path1+'Equations_images_4.npy')
 	eqn_full = [temp1, temp2, temp3, temp4]
 
-	RFILE = open('cnn-results-ver{0}.txt'.format(args.data_ver), 'w')
+	'''RFILE = open('cnn-results-ver{0}.txt'.format(args.data_ver), 'w')
 	for eqns in eqn_full:
 		for c in range(len(eqns)):
 			eqn1 = eqns[c]
@@ -66,18 +67,18 @@ if __name__ == '__main__':
 			cnn_pred = ''
 			for i in range(len(segments)):
 				temp = segments[i]
-				'''plt.imshow(temp, cmap='gray')
-				plt.show()'''
+				#plt.imshow(temp, cmap='gray')
+				#plt.show()
 				temp = temp.reshape(1,-1)
 				cnn_pred += label_class[model.predict(temp)[0]]+' '
 			
 			RFILE.write(cnn_pred+'\n')
 			print(cnn_pred)
-		print('[Done]')
+		print('[Done]')'''
 
-	'''path = 'saved_models'
+	path = 'saved_models'
 	adastage1_ver1,adadigits_ver1, adachars_ver1, rfmodel_ver1, MLP_single_ver1, CNN_ver_1 = preprocess.load_models(path,1,class_labels)
-	#adastage1_ver2,adadigits_ver2, adachars_ver2, rfmodel_ver2, MLP_single_ver2, CNN_ver_2 = preprocess.load_models(path,2,class_labels)
+	adastage1_ver2,adadigits_ver2, adachars_ver2, rfmodel_ver2, MLP_single_ver2, CNN_ver_2 = preprocess.load_models(path,2,class_labels)
 
 	for eqns in eqn_full:
 		for c in range(len(eqns)):
@@ -85,11 +86,11 @@ if __name__ == '__main__':
 			rf_pred_ver1 = ''
 			ada_pred_ver1 = ''
 			mlp_pred_ver1 = ''
-			#rf_pred_ver2 = ''
-			#ada_pred_ver2 = ''
-			#mlp_pred_ver2 = ''
+			rf_pred_ver2 = ''
+			ada_pred_ver2 = ''
+			mlp_pred_ver2 = ''
 			cnn_pred_ver1 = ''
-			#cnn_pred_ver2 = ''
+			cnn_pred_ver2 = ''
 
 	#         print('\nEquation = ',c)
 			eqn1 = eqns[c]
@@ -124,7 +125,3 @@ if __name__ == '__main__':
 			print('adaboost_ver2 2 stage model result : ',ada_pred_ver2)
 			print('MLP single_ver2 stage model result : ',mlp_pred_ver2)
 			print('CNN_ver2 result: ', cnn_pred_ver2)
-			'''
-
-
-
