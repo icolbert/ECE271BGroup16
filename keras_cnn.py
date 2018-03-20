@@ -1,7 +1,8 @@
 import keras
 from keras.datasets import mnist
 from keras.layers import Dense, Flatten
-from keras.layers import Conv2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D, Activation, Dropout
+from keras.layers.normalization import BatchNormalization
 from keras.models import Sequential
 import matplotlib.pylab as plt
 import numpy as np
@@ -120,38 +121,77 @@ if __name__ == '__main__':
 
     batch_size = 128
     num_classes = y_train.shape[1]
-    epochs = 10
+    epochs = 25
 
     model = Sequential()
-    model.add(Conv2D(32, kernel_size=(5, 5), strides=(1, 1),
-                    activation='relu',
-                    input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(Conv2D(64, (5, 5), activation='relu'))
+    model.add(Conv2D(256, kernel_size=(5, 5), strides=(2, 2),input_shape=input_shape))
+    model.add(BatchNormalization())
+    model.add(keras.layers.LeakyReLU(alpha=0.1))
+    model.add(Dropout(0.25))
+
+    model.add(Conv2D(128, (3, 3)))
+    model.add(BatchNormalization())
+    model.add(keras.layers.LeakyReLU(alpha=0.1))
+    model.add(Dropout(0.2))
+
+    model.add(Conv2D(64, (3, 3)))
+    model.add(BatchNormalization())
+    model.add(keras.layers.LeakyReLU(alpha=0.1))
+    model.add(Dropout(0.2))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+
     model.add(Flatten())
-    model.add(Dense(1000, activation='relu'))
+    model.add(Dense(1000 ))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Dropout(0.1))
+
+    model.add(Dense(256 ))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Dropout(0.1))
+
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(loss=keras.losses.categorical_crossentropy,
                 optimizer=keras.optimizers.Adam(),
                 metrics=['accuracy'])
 
-    history = AccuracyHistory()
+    #history = AccuracyHistory()
 
-    model.fit(x_train, y_train,
+    model.summary()
+    history = model.fit(x_train, y_train,
             batch_size=batch_size,
             epochs=epochs,
             verbose=1,
-            validation_data=(x_test, y_test),
-            callbacks=[history])
+            validation_data=(x_test, y_test))
     score = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
-    plt.plot(range(epochs), history.acc)
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.show()
+
+    # summarize history for accuracy
+    plt.figure(figsize=(8,4))
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('CNN model ver{0} accuracy'.format(args.ver),fontsize = 14)
+    plt.xticks(fontsize = 13)
+    plt.yticks(fontsize = 13)
+    plt.ylabel('accuracy',fontsize = 14)
+    plt.xlabel('epochs',fontsize = 14)
+    plt.legend(['train', 'val'], loc='upper left',fontsize = 12)
+    plt.savefig('cnn-ver{0}-acc.png'.format(args.ver))
+
+    # summarize history for loss
+    plt.figure(figsize=(8,4))
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('CNN model ver{0} loss'.format(args.ver),fontsize = 14)
+    plt.xticks(fontsize = 13)
+    plt.yticks(fontsize = 13)
+    plt.ylabel('loss',fontsize = 14)
+    plt.xlabel('epochs',fontsize = 14)
+    plt.legend(['train', 'val'], loc='upper right', fontsize = 12)
+    plt.savefig('cnn-ver{0}-loss.png'.format(args.ver))
 
     mjson = model.to_json()
     with open('saved_models/cnn_v{0}.json'.format(args.ver), 'w') as f:

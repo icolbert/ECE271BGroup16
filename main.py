@@ -1,8 +1,7 @@
 import argparse
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import torch
+import matplotlib.pyplot as pltp
 
 from utils import LoadModel
 from utils import preprocess
@@ -56,7 +55,7 @@ if __name__ == '__main__':
 	temp2 = np.load(path1+'Equations_images_2.npy')
 	temp3 = np.load(path1+'Equations_images_3.npy')
 	temp4 = np.load(path1+'Equations_images_4.npy')
-	eqn_full = [temp1, temp2, temp3, temp4]
+	eqn_full = [temp1]
 
 	'''RFILE = open('cnn-results-ver{0}.txt'.format(args.data_ver), 'w')
 	for eqns in eqn_full:
