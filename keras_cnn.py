@@ -122,6 +122,38 @@ if __name__ == '__main__':
     batch_size = 256
     num_classes = y_train.shape[1]
     epochs = 25
+    
+    if args.model == 0:
+        # BEST ONE
+        model = Sequential()
+        model.add(Conv2D(256, kernel_size=(5, 5), strides=(2, 2),input_shape=input_shape))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.25))
+
+        model.add(Conv2D(128, (3, 3)))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.2))
+
+        model.add(Conv2D(64, (3, 3)))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.2))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+
+        model.add(Flatten())
+        model.add(Dense(1000 ))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Dropout(0.1))
+
+        model.add(Dense(256 ))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Dropout(0.1))
+
+        model.add(Dense(num_classes, activation='softmax'))
 
     
     if args.model == 1:
