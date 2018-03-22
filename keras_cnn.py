@@ -1,7 +1,7 @@
 import keras
 from keras.datasets import mnist
 from keras.layers import Dense, Flatten
-from keras.layers import Conv2D, MaxPooling2D, Activation, Dropout
+from keras.layers import Conv2D, MaxPooling2D, Activation, Dropout, AveragePooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.models import Sequential
 import matplotlib.pylab as plt
@@ -80,7 +80,7 @@ class AccuracyHistory(keras.callbacks.Callback):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     
-    parser.add_argument('-model', default='cnn', type=str, help='Type of model to use')
+    parser.add_argument('-model', default=3, type=int, help='Type of model to use')
     parser.add_argument('-ver', default=1, type=int, help='version of data to use')
     parser.add_argument('-verbose', default=False, type=bool_filter, help='show a lot more outputs? [y/n]')
     
@@ -119,52 +119,113 @@ if __name__ == '__main__':
         print(y_train.shape[0], 'train samples')
         print(y_test.shape[0], 'test samples')
 
-    batch_size = 128
+    batch_size = 256
     num_classes = y_train.shape[1]
     epochs = 25
 
-    model = Sequential()
-    model.add(Conv2D(256, kernel_size=(5, 5), strides=(2, 2),input_shape=input_shape))
-    model.add(BatchNormalization())
-    model.add(keras.layers.LeakyReLU(alpha=0.1))
-    model.add(Dropout(0.25))
+    
+    if args.model == 1:
+        model = Sequential()
+        model.add(Conv2D(256, kernel_size=(3, 3),input_shape=input_shape))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
 
-    model.add(Conv2D(128, (3, 3)))
-    model.add(BatchNormalization())
-    model.add(keras.layers.LeakyReLU(alpha=0.1))
-    model.add(Dropout(0.2))
+        model.add(Conv2D(128, kernel_size=(3, 3), strides=(2, 2)))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.2))
 
-    model.add(Conv2D(64, (3, 3)))
-    model.add(BatchNormalization())
-    model.add(keras.layers.LeakyReLU(alpha=0.1))
-    model.add(Dropout(0.2))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Conv2D(64, kernel_size=(3, 3), strides=(2, 2)))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.2))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    model.add(Flatten())
-    model.add(Dense(1000 ))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dropout(0.1))
+        model.add(Flatten())
+        model.add(Dense(1000 ))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.1))
 
-    model.add(Dense(256 ))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dropout(0.1))
+        model.add(Dense(256 ))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.1))
 
-    model.add(Dense(num_classes, activation='softmax'))
+        model.add(Dense(64))
+        model.add(BatchNormalization())
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(Dropout(0.1))
 
-    model.compile(loss=keras.losses.categorical_crossentropy,
-                optimizer=keras.optimizers.Adam(),
-                metrics=['accuracy'])
+        model.add(Dense(num_classes, activation='softmax'))
 
-    #history = AccuracyHistory()
+    if args.model == 2:
+        model = Sequential()
+        model.add(Conv2D(96, kernel_size=(3, 3), input_shape=input_shape))
+        model.add(keras.layers.ELU(alpha=0.1))
+        model.add(Conv2D(96, kernel_size=(1, 1)))
+        model.add(keras.layers.ELU(alpha=0.1))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.2))
+
+        model.add(Conv2D(192, kernel_size=(3, 3)))
+        model.add(keras.layers.ELU(alpha=0.1))
+        model.add(Conv2D(192, kernel_size=(1, 1)))
+        model.add(keras.layers.ELU(alpha=0.1))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.2))
+        model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
+
+        model.add(Conv2D(192, kernel_size=(1, 1)))
+        model.add(keras.layers.ELU(alpha=0.1))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.1))
+        model.add(AveragePooling2D(pool_size=(3,3)))
+
+        model.add(Flatten())
+        model.add(Dense(256 ))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Dropout(0.1))
+
+        model.add(Dense(num_classes, activation='softmax'))
+
+    if args.model == 3:
+        model = Sequential()
+        model.add(Conv2D(32, kernel_size=(3, 3), strides=(1, 1),input_shape=input_shape))
+        model.add(BatchNormalization())
+        model.add( keras.layers.LeakyReLU(alpha=0.1)  )
+        model.add(Dropout(0.1))
+        model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+        model.add(Conv2D(64, (3, 3)))
+        model.add(BatchNormalization())
+        model.add( keras.layers.LeakyReLU(alpha=0.1)  )
+        model.add(Dropout(0.1))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+
+        model.add(Flatten())
+        model.add(Dense(1000 ))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Dropout(0.1))
+
+        model.add(Dense(256 ))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Dropout(0.1))
+
+        model.add(Dense(num_classes, activation='softmax'))
+
+    adam1 = keras.optimizers.Adam(lr=5e-4, beta_1=0.9, beta_2=0.999)
+    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=adam1,metrics=['accuracy'] )
 
     model.summary()
-    history = model.fit(x_train, y_train,
-            batch_size=batch_size,
-            epochs=epochs,
-            verbose=1,
-            validation_data=(x_test, y_test))
+    history = model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size,validation_split=0.1,
+                    validation_data=(x_test, y_test))
+
+    
     score = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
@@ -179,7 +240,7 @@ if __name__ == '__main__':
     plt.ylabel('accuracy',fontsize = 14)
     plt.xlabel('epochs',fontsize = 14)
     plt.legend(['train', 'val'], loc='upper left',fontsize = 12)
-    plt.savefig('cnn-ver{0}-acc.png'.format(args.ver))
+    plt.savefig('cnn-m{1}-ver{0}-acc.png'.format(args.ver, args.model))
 
     # summarize history for loss
     plt.figure(figsize=(8,4))
@@ -191,11 +252,11 @@ if __name__ == '__main__':
     plt.ylabel('loss',fontsize = 14)
     plt.xlabel('epochs',fontsize = 14)
     plt.legend(['train', 'val'], loc='upper right', fontsize = 12)
-    plt.savefig('cnn-ver{0}-loss.png'.format(args.ver))
+    plt.savefig('cnn-m{1}-ver{0}-loss.png'.format(args.ver, args.model))
 
     mjson = model.to_json()
-    with open('saved_models/cnn_v{0}.json'.format(args.ver), 'w') as f:
+    with open('saved_models/cnn_m{1}_v{0}.json'.format(args.ver, args.model), 'w') as f:
         f.write(mjson)
-    model.save_weights("saved_models/cnn_v{0}.h5".format(args.ver))
+    model.save_weights("saved_models/cnn_m{1}_v{0}.h5".format(args.ver, args.model))
     print("Saved model to disk")
 
